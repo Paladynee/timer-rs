@@ -1,0 +1,9 @@
+[package]
+description = "Timer for rust functions"
+edition = "2021"
+license-file = "LICENSE"
+name = "voxell_timer"
+version = "0.1.0"
+repository = "https://github.com/Paladynee/timer-rs"
+
+[dependencies]
