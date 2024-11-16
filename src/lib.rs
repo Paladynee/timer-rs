@@ -335,20 +335,20 @@ mod tests {
             *inp = x;
             x
         }
-        let mut rng = 0xdeadc0de;
+        let mut rng = 0xdead_c0de;
         let mut big_data = iter::from_fn(|| Some(xorshift32(&mut rng)))
             .take(1_000_000)
             .collect::<Vec<_>>();
 
         let (_, needle_time_unsorted) = time! {
-            big_data.iter().find(|&&a| a >= 0xfffff000)
+            big_data.iter().find(|&&a| a >= 0xffff_f000)
         };
 
-        let (_, sort_time) = time_fn(|| {
-            big_data.sort();
+        let ((), sort_time) = time_fn(|| {
+            big_data.sort_unstable();
         });
 
-        let (_, needle_time_sorted) = time_fn(|| big_data.binary_search_by(|a| a.cmp(&0xfffff000)));
+        let (_, needle_time_sorted) = time_fn(|| big_data.binary_search_by(|a| a.cmp(&0xffff_f000)));
 
         eprintln!("Unsorted: {}ms", needle_time_unsorted.as_millis());
         eprintln!("Sort: {}ms", sort_time.as_millis());
