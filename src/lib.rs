@@ -4,7 +4,7 @@
 //!
 //! ## Example 1
 //! ```rust
-//! # use timer_lib::*;
+//! # use voxell_timer::*;
 //! let (result, time) = time! {
 //!     for _ in 0..1_000_000 {
 //!         let _ = std::hint::black_box(3);
@@ -17,7 +17,7 @@
 //!
 //! ## Example 2
 //! ```rust
-//! # use timer_lib::*;
+//! # use voxell_timer::*;
 //! let haystack = vec![1, 2, 3, 4, 5, 6];
 //! let result = time_println!  {
 //!     "Finding needle in haystack",
@@ -30,18 +30,18 @@
 //!
 //! ## Example 3
 //! ```rust
-//! # use timer_lib::*;
+//! # use voxell_timer::*;
 //! let haystack = vec![1, 2, 3, 4, 5, 6];
 //! let result = time_fn_println("Finding needle in haystack", || {
 //!    let needle = 4;
 //!    haystack.iter().find(|a| **a == needle)
 //! });
+//! assert_eq!(result, Some(&4));
 //! ```
+#![warn(missing_docs)]
 use std::time::{Duration, Instant};
 
-/// wrapper around a closure that will be executed later
-/// and will return the result of the closure and the time
-/// it took to execute the closure
+/// wrapper around a closure
 pub struct LazyTimer<T, F>
 where
     F: FnOnce() -> T,
@@ -53,10 +53,13 @@ impl<T, F> LazyTimer<T, F>
 where
     F: FnOnce() -> T,
 {
+    /// create a new `LazyTimer` from a closure
     pub const fn new(f: F) -> LazyTimer<T, F> {
         LazyTimer { f }
     }
 
+    /// execute the closure and return the result and
+    /// the time it took to execute
     pub fn into_exec(self) -> (T, Duration) {
         let f = self.f;
 
@@ -76,19 +79,23 @@ where
         &self.f
     }
 
+    /// get a mutable reference to the closure
     pub const fn as_inner_mut(&mut self) -> &mut F {
         &mut self.f
     }
 
+    /// consume the `LazyTimer` and return the closure
     pub fn into_inner(self) -> F {
         self.f
     }
 }
 
+/// trait to convert a closure into a `LazyTimer`
 pub trait IntoLazyTimer<T, F>
 where
     F: FnOnce() -> T,
 {
+    /// converts a closure into a `LazyTimer`
     fn into_lazy_timer(self) -> LazyTimer<T, F>;
 }
 
@@ -101,6 +108,8 @@ where
     }
 }
 
+/// use when you need both the result of the closure and the time
+/// it took to execute as a tuple.
 pub fn time_fn<T, F>(f: F) -> (T, Duration)
 where
     F: FnOnce() -> T,
@@ -109,26 +118,34 @@ where
     timer.into_exec()
 }
 
-pub fn time_fn_println<T, F>(label: &str, f: F) -> (T, Duration)
+/// use for dirty debugging by printing the time it took to execute
+///
+/// printing is done to `stdout`
+pub fn time_fn_println<T, F>(label: &str, f: F) -> T
 where
     F: FnOnce() -> T,
 {
     let timer = LazyTimer::new(f);
     let (res, dur) = timer.into_exec();
     println!("{}: {}ms", label, dur.as_millis());
-    (res, dur)
+    res
 }
 
-pub fn time_fn_eprintln<T, F>(label: &str, f: F) -> (T, Duration)
+/// use for dirty debugging by printing the time it took to execute
+///
+/// printing is done to `stderr`
+pub fn time_fn_eprintln<T, F>(label: &str, f: F) -> T
 where
     F: FnOnce() -> T,
 {
     let timer = LazyTimer::new(f);
     let (res, dur) = timer.into_exec();
     eprintln!("{}: {}ms", label, dur.as_millis());
-    (res, dur)
+    res
 }
 
+/// use when you need both the result of the block and the time
+/// it took to execute as a tuple.
 #[macro_export]
 macro_rules! time {
     {$($a:tt)*} => {{
@@ -137,6 +154,12 @@ macro_rules! time {
     }};
 }
 
+/// use for dirty debugging by printing the time it took to execute
+/// the given block.
+///
+/// can optionally be labeled with a string: `time_println!("label", ...)`
+///
+/// printing is done to `stdout`
 #[macro_export]
 macro_rules! time_println {
     {$a:expr, $($b:tt)*} => {{
@@ -153,6 +176,12 @@ macro_rules! time_println {
     }};
 }
 
+/// use for dirty debugging by printing the time it took to execute
+/// the given block.
+///
+/// can optionally be labeled with a string: `time_eprintln!("label", ...)`
+///
+/// printing is done to `stderr`
 #[macro_export]
 macro_rules! time_eprintln {
     {$a:expr, $($b:tt)*} => {{
