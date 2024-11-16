@@ -1,9 +1,10 @@
 [package]
-description = "Timer for rust functions"
+description = "Perf timers for Rust"
 edition = "2021"
+keywords = ["timer", "timing"]
 license-file = "LICENSE"
 name = "voxell_timer"
-version = "0.1.0"
 repository = "https://github.com/Paladynee/timer-rs"
+version = "0.2.0"
 
 [dependencies]
