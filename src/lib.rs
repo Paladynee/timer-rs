@@ -39,7 +39,8 @@
 //! assert_eq!(result, Some(&4));
 //! ```
 #![warn(missing_docs)]
-use std::time::{Duration, Instant};
+use core::time::Duration;
+use std::time::Instant;
 
 /// wrapper around a closure
 pub struct LazyTimer<T, F>
@@ -54,12 +55,14 @@ where
     F: FnOnce() -> T,
 {
     /// create a new `LazyTimer` from a closure
-    pub const fn new(f: F) -> LazyTimer<T, F> {
-        LazyTimer { f }
+    #[inline]
+    pub const fn new(f: F) -> Self {
+        Self { f }
     }
 
     /// execute the closure and return the result and
     /// the time it took to execute
+    #[inline]
     pub fn into_exec(self) -> (T, Duration) {
         let f = self.f;
 
@@ -75,16 +78,19 @@ where
     /// if it does not capture any non-copy types
     /// you can call the resulting closure and the timer
     /// however you want.
+    #[inline]
     pub const fn as_inner(&self) -> &F {
         &self.f
     }
 
     /// get a mutable reference to the closure
+    #[inline]
     pub const fn as_inner_mut(&mut self) -> &mut F {
         &mut self.f
     }
 
     /// consume the `LazyTimer` and return the closure
+    #[inline]
     pub fn into_inner(self) -> F {
         self.f
     }
@@ -103,6 +109,7 @@ impl<T, F> IntoLazyTimer<T, F> for F
 where
     F: FnOnce() -> T,
 {
+    #[inline]
     fn into_lazy_timer(self) -> LazyTimer<T, F> {
         LazyTimer::new(self)
     }
@@ -110,6 +117,7 @@ where
 
 /// use when you need both the result of the closure and the time
 /// it took to execute as a tuple.
+#[inline]
 pub fn time_fn<T, F>(f: F) -> (T, Duration)
 where
     F: FnOnce() -> T,
@@ -121,6 +129,7 @@ where
 /// use for dirty debugging by printing the time it took to execute
 ///
 /// printing is done to `stdout`
+#[inline]
 pub fn time_fn_println<T, F>(label: &str, f: F) -> T
 where
     F: FnOnce() -> T,
@@ -134,6 +143,7 @@ where
 /// use for dirty debugging by printing the time it took to execute
 ///
 /// printing is done to `stderr`
+#[inline]
 pub fn time_fn_eprintln<T, F>(label: &str, f: F) -> T
 where
     F: FnOnce() -> T,
@@ -202,6 +212,7 @@ macro_rules! time_eprintln {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use core::iter;
 
     #[test]
     fn lazy_timer_struct() {
@@ -325,7 +336,7 @@ mod tests {
             x
         }
         let mut rng = 0xdeadc0de;
-        let mut big_data = std::iter::from_fn(|| Some(xorshift32(&mut rng)))
+        let mut big_data = iter::from_fn(|| Some(xorshift32(&mut rng)))
             .take(1_000_000)
             .collect::<Vec<_>>();
 
