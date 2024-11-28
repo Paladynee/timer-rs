@@ -48,7 +48,7 @@ where
 macro_rules! time {
     {$($a:tt)*} => {{
         let f = || { $($a)* };
-        time_fn(f)
+        $crate::time_fn(f)
     }};
 }
 
@@ -65,7 +65,7 @@ macro_rules! time_println {
     // macro time_println(unquoted label..., code()... ) -> code()::output
     {$($a:ident)*, $($b:tt)*} => {{
         let f = || { $($b)* };
-        let (res, dur) = time_fn(f);
+        let (res, dur) = $crate::time_fn(f);
         println!("{}: {}ms", stringify!($($a)*), dur.as_millis());
         res
     }};
@@ -73,7 +73,7 @@ macro_rules! time_println {
     // macro time_println(label: &str, code()...) -> code()::output
     {$a:expr, $($b:tt)*} => {{
         let f = || { $($b)* };
-        let (res, dur) = time_fn(f);
+        let (res, dur) = $crate::time_fn(f);
         println!("{}: {}ms", $a, dur.as_millis());
         res
     }};
@@ -81,7 +81,7 @@ macro_rules! time_println {
     // macro time_println(code()...) -> code()::output
     {$($a:tt)*} => {{
         let f = || { $($a)* };
-        let (res, dur) = time_fn(f);
+        let (res, dur) = $crate::time_fn(f);
         println!("{}: {}ms", stringify!($($a)*), dur.as_millis());
         res
     }};
@@ -100,7 +100,7 @@ macro_rules! time_eprintln {
     // macro time_println(unquoted label..., code()... ) -> code()::output
     {$($a:ident)*, $($b:tt)*} => {{
         let f = || { $($b)* };
-        let (res, dur) = time_fn(f);
+        let (res, dur) = $crate::time_fn(f);
         eprintln!("{}: {}ms", stringify!($($a)*), dur.as_millis());
         res
     }};
@@ -108,7 +108,7 @@ macro_rules! time_eprintln {
     // macro time_println(label: &str, code()...) -> code()::output
     {$a:expr, $($b:tt)*} => {{
         let f = || { $($b)* };
-        let (res, dur) = time_fn(f);
+        let (res, dur) = $crate::time_fn(f);
         eprintln!("{}: {}ms", $a, dur.as_millis());
         res
     }};
@@ -116,7 +116,7 @@ macro_rules! time_eprintln {
     // macro time_println(code()...) -> code()::output
     {$($a:tt)*} => {{
         let f = || { $($a)* };
-        let (res, dur) = time_fn(f);
+        let (res, dur) = $crate::time_fn(f);
         eprintln!("{}: {}ms", stringify!($($a)*), dur.as_millis());
         res
     }};
