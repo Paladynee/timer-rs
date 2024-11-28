@@ -1,12 +1,12 @@
 [package]
-categories = ["development-tools::profiling"]
+categories = ["development-tools", "development-tools::profiling"]
 description = "Perf timers for Rust"
 edition = "2021"
 keywords = ["timer", "timing"]
 license-file = "LICENSE"
 name = "voxell_timer"
 repository = "https://github.com/Paladynee/timer-rs"
-version = "0.2.4"
+version = "1.0.0"
 
 [dependencies]
 
