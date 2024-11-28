@@ -14,10 +14,10 @@ Simply use the provided macros/functions to time your code to get a `Duration` a
 use voxell_timer::*;
 
 let (result, time) = time! {
-for _ in 0..1_000_000 {
-let _ = std::hint::black_box(3);
-}
-10
+    for _ in 0..1_000_000 {
+        let _ = std::hint::black_box(3);
+    }
+    10
 };
 eprintln!("Took {}ms", time.as_millis());
 assert_eq!(result, 10);
@@ -30,9 +30,9 @@ use voxell_timer::*;
 
 let haystack = vec![1, 2, 3, 4, 5, 6];
 let result = time_println! {
-"Finding needle in haystack",
-let needle = 4;
-haystack.iter().find(|a| **a == needle)
+    "Finding needle in haystack",
+    let needle = 4;
+    haystack.iter().find(|a| **a == needle)
 };
 
 assert_eq!(result, Some(&4));
@@ -45,8 +45,8 @@ use voxell_timer::*;
 
 let haystack = vec![1, 2, 3, 4, 5, 6];
 let result = time_fn_println("Finding needle in haystack", || {
-let needle = 4;
-haystack.iter().find(|a| **a == needle)
+    let needle = 4;
+    haystack.iter().find(|a| **a == needle)
 });
 assert_eq!(result, Some(&4));
 ```
