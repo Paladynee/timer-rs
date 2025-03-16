@@ -124,109 +124,110 @@ macro_rules! time_eprintln {
         res
     }};
 }
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use core::iter;
 
-//     #[test]
-//     fn works() {
-//         let f = || 5 + 3;
-//         let (res, _dur) = time_fn(f);
-//         assert_eq!(res, 8);
-//     }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::iter;
 
-//     #[test]
-//     fn noncopy() {
-//         #[derive(PartialEq, Debug)]
-//         struct Noncopy;
-//         let capture = Noncopy;
-//         let f = || capture;
+    #[test]
+    fn works() {
+        let f = || 5 + 3;
+        let (res, _dur) = time_fn(f);
+        assert_eq!(res, 8);
+    }
 
-//         let (res, _dur) = time_fn(f);
+    #[test]
+    fn noncopy() {
+        #[derive(PartialEq, Debug)]
+        struct Noncopy;
+        let capture = Noncopy;
+        let f = || capture;
 
-//         assert_eq!(res, Noncopy);
-//     }
+        let (res, _dur) = time_fn(f);
 
-//     #[test]
-//     fn time_macro() {
-//         let (res, _dur) = time! {3 + 5};
-//         assert_eq!(res, 8);
-//     }
+        assert_eq!(res, Noncopy);
+    }
 
-//     #[test]
-//     fn time_unlabeled_println_macro() {
-//         let res = time_println! {3 + 5};
-//         assert_eq!(res, 8);
-//     }
+    #[test]
+    fn time_macro() {
+        let (res, _dur) = time! {3 + 5};
+        assert_eq!(res, 8);
+    }
 
-//     #[test]
-//     fn time_unlabeled_eprintln_macro() {
-//         let res = time_eprintln! {3 + 5};
-//         assert_eq!(res, 8);
-//     }
+    #[test]
+    fn time_unlabeled_println_macro() {
+        let res = time_println! {3 + 5};
+        assert_eq!(res, 8);
+    }
 
-//     #[test]
-//     fn time_labeled_println_macro() {
-//         let res = time_println! {
-//             "Labeled stdout println",
-//             3 + 5
-//         };
-//         assert_eq!(res, 8);
-//     }
+    #[test]
+    fn time_unlabeled_eprintln_macro() {
+        let res = time_eprintln! {3 + 5};
+        assert_eq!(res, 8);
+    }
 
-//     #[test]
-//     fn time_labeled_eprintln_macro() {
-//         let res = time_eprintln! {
-//             "Labeled stderr println",
-//             3 + 5
-//         };
-//         assert_eq!(res, 8);
-//     }
+    #[test]
+    fn time_labeled_println_macro() {
+        let res = time_println! {
+            "Labeled stdout println",
+            3 + 5
+        };
+        assert_eq!(res, 8);
+    }
 
-//     #[test]
-//     fn time_labeled_println_macro_no_quotes() {
-//         let res = time_println! {
-//             unquoted label,
-//             3 + 5
-//         };
-//         assert_eq!(res, 8);
-//     }
+    #[test]
+    fn time_labeled_eprintln_macro() {
+        let res = time_eprintln! {
+            "Labeled stderr println",
+            3 + 5
+        };
+        assert_eq!(res, 8);
+    }
 
-//     #[test]
-//     fn time_labeled_eprintln_macro_no_quotes() {
-//         let res = time_eprintln! {
-//             unquoted label,
-//             3 + 5
-//         };
-//         assert_eq!(res, 8);
-//     }
+    #[test]
+    fn time_labeled_println_macro_no_quotes() {
+        let res = time_println! {
+            unquoted label,
+            3 + 5
+        };
+        assert_eq!(res, 8);
+    }
 
-//     #[test]
-//     fn extensive_test() {
-//         fn xorshift32(inp: &mut u32) -> u32 {
-//             let mut x = *inp;
-//             x ^= x << 13;
-//             x ^= x >> 17;
-//             x ^= x << 5;
-//             *inp = x;
-//             x
-//         }
-//         let mut rng = 0xdead_c0de;
-//         let mut big_data = iter::from_fn(|| Some(xorshift32(&mut rng))).take(1_000_000).collect::<Vec<_>>();
+    #[test]
+    fn time_labeled_eprintln_macro_no_quotes() {
+        let res = time_eprintln! {
+            unquoted label,
+            3 + 5
+        };
+        assert_eq!(res, 8);
+    }
 
-//         let (_, needle_time_unsorted) = time! {
-//             big_data.iter().find(|&&a| a >= 0xffff_f000)
-//         };
+    #[test]
+    fn extensive_test() {
+        fn xorshift32(inp: &mut u32) -> u32 {
+            let mut x = *inp;
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            *inp = x;
+            x
+        }
+        let mut rng = 0xdead_c0de;
+        let mut big_data = iter::from_fn(|| Some(xorshift32(&mut rng))).take(10_000).collect::<Vec<_>>();
 
-//         let ((), sort_time) = time_fn(|| {
-//             big_data.sort_unstable();
-//         });
+        let (_, needle_time_unsorted) = time! {
+            big_data.iter().find(|&&a| a >= 0xffff_f000)
+        };
 
-//         let (_, needle_time_sorted) = time_fn(|| big_data.binary_search_by(|a| a.cmp(&0xffff_f000)));
+        let ((), sort_time) = time_fn(|| {
+            big_data.sort_unstable();
+        });
 
-//         eprintln!("Unsorted: {}ms", needle_time_unsorted.as_millis());
-//         eprintln!("Sort: {}ms", sort_time.as_millis());
-//         eprintln!("Sorted: {}ms", needle_time_sorted.as_millis());
-//     }
-// }
+        let (_, needle_time_sorted) = time_fn(|| big_data.binary_search_by(|a| a.cmp(&0xffff_f000)));
+
+        eprintln!("Unsorted: {}ms", needle_time_unsorted.as_millis());
+        eprintln!("Sort: {}ms", sort_time.as_millis());
+        eprintln!("Sorted: {}ms", needle_time_sorted.as_millis());
+    }
+}

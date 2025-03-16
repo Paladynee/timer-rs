@@ -90,6 +90,7 @@ where
     ident: I,
     start: Instant,
     accumulated: Duration,
+    times_forked: u32,
     // this also doubles as an infinite-size
     // protector since it is heap allocated.
     children: Vec<ScopedTimer<I>>,
@@ -100,6 +101,7 @@ impl<I: Eq + Debug> fmt::Debug for ScopedTimer<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ScopedTimer")
             .field("ident", &self.ident)
+            .field("times_forked", &self.times_forked)
             .field("start", &"{ some point in time }")
             .field("accumulated", &self.accumulated)
             .field("children", &self.children)
@@ -159,6 +161,7 @@ impl<I: Eq + Clone> Forkable<I> for ScopedTimer<I> {
     /// ```
     #[inline]
     fn fork<'prt>(&'prt mut self, ident: I) -> ScopeJoinHandle<'prt, I> {
+        self.times_forked += 1;
         search_and_push(&mut self.children, ident)
     }
 }
@@ -173,6 +176,7 @@ impl<I: Eq + Clone> ScopedTimer<I> {
             ident,
             start: Instant::now(),
             accumulated: Duration::ZERO,
+            times_forked: 0,
             children: Vec::new(),
         }
     }
@@ -187,12 +191,12 @@ impl<I: Eq + Clone> ScopedTimer<I> {
     }
 
     /// Collect all the timed values from all child scopes and returns
-    /// a list of `(identifier, duration)` pairs.
+    /// a list of `(identifier, duration, times_forked)` tuples.
     ///
     /// Scopes **subtract** time of other scopes forked from it. So you can rest assured the value
     /// with the highest time is the hottest path.
     #[inline]
-    pub fn join_and_finish(mut self) -> Vec<(I, Duration)> {
+    pub fn join_and_finish(mut self) -> Vec<(I, Duration, u32)> {
         self.join();
 
         let mut vec = vec![];
@@ -210,6 +214,10 @@ impl<I: Eq + Clone> ScopedTimer<I> {
     where
         I: Display,
     {
+        const IDENT: &str = "Identifier";
+        const DURAT: &str = "Duration";
+        const TIMESF: &str = "Times Forked";
+
         let mut timings = self.join_and_finish();
 
         timings.sort_unstable_by(|a, b| b.1.cmp(&a.1));
@@ -217,81 +225,101 @@ impl<I: Eq + Clone> ScopedTimer<I> {
         let strings = timings
             .into_iter()
             .map(|res| {
-                (res.0.to_string(), {
-                    let mut f = String::new();
-                    // string guarantees fmt writes never fail, though the debug impl could, i honestly dont know.
-                    // i dont want random panics from happening, so lets just ignore the result.
-                    let _ = write!(f, "{:?}", res.1);
-                    f
-                })
+                (
+                    res.0.to_string(),
+                    {
+                        let mut f = String::new();
+                        // string guarantees fmt writes never fail. even though,
+                        // i dont want random panics, so lets just ignore the result.
+                        // as per the standard library, string formatting is an infallible operation.
+                        let _ = write!(f, "{:?}", res.1);
+                        f
+                    },
+                    res.2.to_string(),
+                )
             })
             .collect::<Vec<_>>();
 
-        let (mut longest_ident, mut longest_dur) = strings.iter().fold((0, 0), |(mut longest_ident, mut longest_dur), (ident, dur)| {
-            let il = ident.len();
-            let dl = dur.len();
-            if il > longest_ident {
-                longest_ident = il;
-            }
-            if dl > longest_dur {
-                longest_dur = dl;
-            }
-            (longest_ident, longest_dur)
-        });
-        longest_ident = longest_ident.max("Identifier".len());
-        longest_dur = longest_dur.max("Duration".len());
+        let (mut longest_ident, mut longest_dur, mut longest_fork) =
+            strings
+                .iter()
+                .fold((0, 0, 0), |(mut longest_ident, mut longest_dur, mut longest_fork), (ident, dur, fork)| {
+                    longest_ident = longest_ident.max(ident.len());
+                    longest_dur = longest_dur.max(dur.len());
+                    longest_fork = longest_fork.max(fork.len());
+                    (longest_ident, longest_dur, longest_fork)
+                });
 
-        let mut buf = String::new();
+        longest_ident = longest_ident.max(IDENT.len());
+        longest_dur = longest_dur.max(DURAT.len());
+        longest_fork = longest_fork.max(TIMESF.len());
 
         // we now have stringified pairs of identifiers and durations along with
         // the longest identifier and duration lengths. the resulting table should look like this:
         /*
-           +----------------------+----------------+
-           | Identifier           | Duration       |
-           +----------------------+----------------+
-           | scope 1              | 16.485ms       |
-           | scope sdfkljsdfsdf   | 0.00000000001s |
-           | hot loop             | 5.34h          |
-           +----------------------+----------------+
+           +----------------------+----------------+--------------+
+           | Identifier           | Duration       | Times Forked |
+           +----------------------+----------------+--------------+
+           | scope 1              | 16.485ms       | 15           |
+           | scope sdfkljsdfsdf   | 0.00000000001s | 1            |
+           | hot loop             | 5.34h          | 3651343      |
+           +----------------------+----------------+--------------+
         */
         // key aspects:
         // - Every textual value is left aligned.
         // - Things represented with strings arent quoted.
         // - At least 1 space before and after any pipe "|".
 
-        // +----------------------+----------------+
-        let hline = format!("+{}+{}+", "-".repeat(longest_ident + 2), "-".repeat(longest_dur + 2));
+        let mut buf = String::new();
 
-        buf.push_str(&hline);
-        buf.push('\n');
-
-        // | Identifier           | Duration       |
-        let _ = writeln!(
-            buf,
-            "| {:<width_id$} | {:<width_dur$} |",
-            "Identifier",
-            "Duration",
-            width_id = longest_ident,
-            width_dur = longest_dur
+        // +----------------------+----------------+--------------+
+        let hline = format!(
+            "+{}+{}+{}+",
+            "-".repeat(longest_ident + 2),
+            "-".repeat(longest_dur + 2),
+            "-".repeat(longest_fork + 2)
         );
 
-        // +----------------------+----------------+
         buf.push_str(&hline);
         buf.push('\n');
 
-        for (ident, dur) in strings {
-            // | scope 1              | 16.485ms       |
+        // string guarantees fmt writes never fail. even though,
+        // i dont want random panics, so lets just ignore the result.
+        // as per the standard library, string formatting is an infallible operation.
+        // | Identifier           | Duration       | Times Forked |
+        let _ = writeln!(
+            buf,
+            "| {:<width_id$} | {:<width_dur$} | {:<width_fork$} |",
+            IDENT,
+            DURAT,
+            TIMESF,
+            width_id = longest_ident,
+            width_dur = longest_dur,
+            width_fork = longest_fork
+        );
+
+        // +----------------------+----------------+--------------+
+        buf.push_str(&hline);
+        buf.push('\n');
+
+        for (ident, dur, fork) in strings {
+            // string guarantees fmt writes never fail. even though,
+            // i dont want random panics, so lets just ignore the result.
+            // as per the standard library, string formatting is an infallible operation.
+            // | scope 1              | 16.485ms       | 15           |
             let _ = writeln!(
                 buf,
-                "| {:<width_id$} | {:<width_dur$} |",
+                "| {:<width_id$} | {:<width_dur$} | {:<width_fork$} |",
                 ident,
                 dur,
+                fork,
                 width_id = longest_ident,
-                width_dur = longest_dur
+                width_dur = longest_dur,
+                width_fork = longest_fork
             );
         }
 
-        // +----------------------+----------------+
+        // +----------------------+----------------+--------------+
         buf.push_str(&hline);
 
         buf
@@ -300,7 +328,7 @@ impl<I: Eq + Clone> ScopedTimer<I> {
     // private api because of the recursive nature for children,
     // while also requiring the root also `join`s the horde.
     #[inline]
-    fn finish(self, v: &mut Vec<(I, Duration)>) {
+    fn finish(self, v: &mut Vec<(I, Duration, u32)>) {
         let mut horde = self.accumulated;
         let mut chillated = Duration::ZERO;
 
@@ -316,7 +344,7 @@ impl<I: Eq + Clone> ScopedTimer<I> {
             // saturate on underflow
             horde = Duration::ZERO;
         }
-        v.push((self.ident, horde));
+        v.push((self.ident, horde, self.times_forked));
     }
 
     // private api
@@ -421,31 +449,36 @@ impl<I: Eq + Clone> Drop for ScopeJoinHandle<'_, I> {
 fn search_and_push<'vec, I: Eq + Clone>(v: &'vec mut Vec<ScopedTimer<I>>, ident: I) -> ScopeJoinHandle<'vec, I> {
     let find = v.iter().position(|child| child.ident == ident);
     if let Some(index) = find {
-        // FIXME: after polonius gets released, change this to
+        // FIXME: when the borrow checker is replaced with Polonius replace this part with
         // ```
         // if let Some (res) = v.iter_mut().find(...) { ... return fjh; }`
         // ```
         // we need to drop the reference so that the iterator over the vector is no longer valid,
-        // and we can mutably reference the vector again.
+        // and we can mutably reference the vector again. this is always safe to do, and it's
+        // a current limitation of the borrow checker that rejects sound code.
 
         // Safety: the index is returned by the `.iter().position()`, which guarantees
         // things exist when the vector couldn't possibly have changed after returning `Some`.
         let entry = unsafe { v.get_unchecked_mut(index) };
-        entry.start = Instant::now();
+        entry.times_forked += 1;
 
         let cjh = ScopeJoinHandle { inner: entry };
+        // do not account for addassign
+        cjh.inner.start = Instant::now();
         return cjh;
     }
 
-    let timer = ScopedTimer::new(ident);
+    let mut timer = ScopedTimer::new(ident);
+    timer.times_forked = 1;
     v.push(timer);
 
     let cjh = ScopeJoinHandle {
-        // Safety: we pushed 1 line before this, the vector can't possibly be empty.
-        // in order for the vec to be empty it needs to fail while pushing the element.
-        // it panics when it fails, so its impossible to reach here.
+        // Safety: Vec::push panics if the push wasn't succesful,
+        // it is guaranteed that there is a last element.
         inner: unsafe { v.last_mut().unwrap_unchecked() },
     };
+    // do not account for potential vec growth in the output
+    cjh.inner.start = Instant::now();
     cjh
 }
 
@@ -487,6 +520,15 @@ pub fn test() {
     }
     // ensure fork6 is relatively close to 0. fork7 did all the hard work.
     fork6.join();
+
+    let mut fork8 = tlt.fork(8);
+    for _ in 0..100000 {
+        let fork9 = fork8.fork(9);
+        // measures how much overhead making a fork and joining it has.
+        fork9.join();
+    }
+    // measures how much overhead making a fork and joining it has.
+    fork8.join();
 
     let results = tlt.join_and_finish_pretty();
     eprintln!("{}", results);

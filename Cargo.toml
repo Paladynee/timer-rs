@@ -6,7 +6,7 @@ keywords = ["timer", "timing"]
 license-file = "LICENSE"
 name = "voxell_timer"
 repository = "https://github.com/Paladynee/timer-rs"
-version = "1.2.0"
+version = "1.2.1"
 
 [lints.clippy]
 absolute_paths = "warn"
