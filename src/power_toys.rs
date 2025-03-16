@@ -4,6 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+// not public intentionally, we forward the method names from the implementations instead
 trait Forkable<I: Eq + Clone> {
     /// do not use zero sized types or non-easily-comparable identifiers as identifiers
     /// for your top level timer. it will mess up with the result, since we have no
@@ -482,54 +483,57 @@ fn search_and_push<'vec, I: Eq + Clone>(v: &'vec mut Vec<ScopedTimer<I>>, ident:
     cjh
 }
 
-#[inline]
-#[test]
-pub fn test() {
-    use std::thread;
-    fn sleep(x: u64) {
-        thread::sleep(Duration::from_millis(x / 10));
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test() {
+        use std::thread;
+        fn sleep(x: u64) {
+            thread::sleep(Duration::from_millis(x / 10));
+        }
 
-    let mut tlt: ScopedTimer<usize> = ScopedTimer::new(0);
-    // ensure tlt can be forked.
-    let fork1 = tlt.fork(1);
-    sleep(333);
-    fork1.join();
+        let mut tlt: ScopedTimer<usize> = ScopedTimer::new(0);
+        // ensure tlt can be forked.
+        let fork1 = tlt.fork(1);
+        sleep(333);
+        fork1.join();
 
-    let mut fork2 = tlt.fork(2);
-    // ensure fork2 can be forked.
-    // (`impl Forkable for T` error otherwise, lifetime comes from callsite of `fork`)
-    let mut fork3 = fork2.fork(3);
-    let mut fork4 = fork3.fork(4);
-    let fork5 = fork4.fork(5);
-    sleep(1000);
-    // ensure lifetimes work
-    fork5.join();
-    fork4.join();
-    fork3.join();
-    // ensure fork 2, 3, and 4 are all relatively close to 0. fork 5 did all the work.
-    fork2.join();
+        let mut fork2 = tlt.fork(2);
+        // ensure fork2 can be forked.
+        // (`impl Forkable for T` error otherwise, lifetime comes from callsite of `fork`)
+        let mut fork3 = fork2.fork(3);
+        let mut fork4 = fork3.fork(4);
+        let fork5 = fork4.fork(5);
+        sleep(1000);
+        // ensure lifetimes work
+        fork5.join();
+        fork4.join();
+        fork3.join();
+        // ensure fork 2, 3, and 4 are all relatively close to 0. fork 5 did all the work.
+        fork2.join();
 
-    let mut fork6 = tlt.fork(6);
-    for _ in 0..6 {
-        // ensure the same scope gets reused in `search_and_push` (scope with ident 7),
-        // such that we dont get duplicate scopes.
-        let fork7 = fork6.fork(7);
-        sleep(666);
-        fork7.join();
-    }
-    // ensure fork6 is relatively close to 0. fork7 did all the hard work.
-    fork6.join();
+        let mut fork6 = tlt.fork(6);
+        for _ in 0..6 {
+            // ensure the same scope gets reused in `search_and_push` (scope with ident 7),
+            // such that we dont get duplicate scopes.
+            let fork7 = fork6.fork(7);
+            sleep(666);
+            fork7.join();
+        }
+        // ensure fork6 is relatively close to 0. fork7 did all the hard work.
+        fork6.join();
 
-    let mut fork8 = tlt.fork(8);
-    for _ in 0..100000 {
-        let fork9 = fork8.fork(9);
+        let mut fork8 = tlt.fork(8);
+        for _ in 0..100000 {
+            let fork9 = fork8.fork(9);
+            // measures how much overhead making a fork and joining it has.
+            fork9.join();
+        }
         // measures how much overhead making a fork and joining it has.
-        fork9.join();
-    }
-    // measures how much overhead making a fork and joining it has.
-    fork8.join();
+        fork8.join();
 
-    let results = tlt.join_and_finish_pretty();
-    eprintln!("{}", results);
+        let results = tlt.join_and_finish_pretty();
+        eprintln!("{}", results);
+    }
 }

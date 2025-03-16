@@ -128,6 +128,7 @@ macro_rules! time_eprintln {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::power_toys::*;
     use core::iter;
 
     #[test]
@@ -229,5 +230,42 @@ mod tests {
         eprintln!("Unsorted: {}ms", needle_time_unsorted.as_millis());
         eprintln!("Sort: {}ms", sort_time.as_millis());
         eprintln!("Sorted: {}ms", needle_time_sorted.as_millis());
+    }
+
+    #[test]
+    fn test2() {
+        use std::thread;
+        use std::time::Duration;
+
+        fn sleep(ms: u64) {
+            thread::sleep(Duration::from_millis(ms / 10));
+        }
+
+        // create a performance session with identifier type &str
+        let mut session = ScopedTimer::<&str>::new("total");
+
+        let mut outer = session.fork("outer loop"); // <- give a unique name!
+        for _ in 0..3 {
+            //          VVVVV you can nest scopes!
+            let mut inner = outer.fork("inner loop"); // <- give a unique name!
+
+            // expensive work...
+            sleep(200);
+
+            for _ in 0..4 {
+                //           VVVVV so many nests...
+                let innest = inner.fork("innest loop"); // <- give a unique name!
+
+                // more work ...
+                sleep(100);
+
+                innest.join(); // <- times the innest scope.
+            }
+            inner.join(); // <- times the inner scope.
+        }
+        outer.join(); // <- times the outer scope
+
+        let results = session.join_and_finish_pretty();
+        println!("{}", results);
     }
 }

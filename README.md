@@ -5,10 +5,13 @@ let data = time_eprintln!{hello mom, generate_data() };
 // -> hello mom: 309ms
 ```
 
-This library provides a simple way to time code execution.
+This library provides a simple and an advanced way to time code execution.
 Simply use the provided macros/functions to time your code to get a `Duration` and the result of the block/closure.
+Or use the advanced instrumentation and get a list of spans that took the most time to execute. 
 
 ## Simple example
+
+This is the primary and recommended use case of the library. The brackets are literally treated like a new scope.
 
 ```rust
 use voxell_timer::*;
@@ -61,12 +64,18 @@ for _ in 0..3 {
 }
 outer.join(); // <- times the outer scope
 
-let results = session.join_and_finish();
-println!("{:#?}", results);
-// inner loop: 600ms
-// innest loop: 1.2s
-// outer loop: 0ms
-//             ^ scopes only time their own!
+let results = session.join_and_finish_pretty();
+println!("{}", results);
+// +-------------+------------+--------------+
+// | Identifier  | Duration   | Times Forked |
+// +-------------+------------+--------------+
+// | innest loop | 125.8265ms | 12           |
+// | inner loop  | 61.3889ms  | 3            |
+// | outer loop  | 2µs        | 1            |
+// | total       | 700ns      | 1            |
+// +-------------+-^^^--------+--------------+
+//                 |||
+//                 +++. scopes only time their own!
 ```
 
 ## Example
