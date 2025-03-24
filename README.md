@@ -37,7 +37,7 @@ use std::thread;
 use std::time::Duration;
 
 fn sleep(ms: u64) {
-    thread::sleep(Duration::from_millis(ms / 10));
+    thread::sleep(Duration::from_millis(ms));
 }
 
 // create a performance session with identifier type &str
@@ -49,14 +49,14 @@ for _ in 0..3 {
     let mut inner = outer.fork("inner loop"); // <- give a unique name!
 
     // expensive work...
-    sleep(200);
+    sleep(20);
 
     for _ in 0..4 {
         //           VVVVV so many nests...
         let innest = inner.fork("innest loop"); // <- give a unique name!
 
         // more work ...
-        sleep(100);
+        sleep(10);
 
         innest.join(); // <- times the innest scope.
     }
